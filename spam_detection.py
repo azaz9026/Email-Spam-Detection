@@ -3,6 +3,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import streamlit as st
+from PIL import Image, ImageOps, ImageDraw
+
+# Configure the page
+st.set_page_config(
+    page_title="Spam Detection",
+    page_icon=":envelope:",  # Or use a custom image path
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Load and preprocess data
 data = pd.read_csv('spam.csv')
@@ -10,18 +19,13 @@ data = pd.read_csv('spam.csv')
 # Drop duplicates
 data.drop_duplicates(inplace=True)
 
-# Check for missing values
-if data.isnull().sum().any():
-    st.error("Data contains missing values. Please clean the data.")
-else:
-    st.write("Data loaded successfully.")
-
 # Update category labels
 data['Category'] = data['Category'].replace(['ham', 'spam'], ['Not Spam', 'Spam'])
 
 # Display a sample of the data
 st.write("### Sample Data:")
-st.dataframe(data.head(5))
+rows = st.slider("Number of rows to view:", min_value=1, max_value=20, value=5)
+st.dataframe(data.head(rows))
 
 # Split data into training and testing sets
 mess = data['Message']
@@ -42,33 +46,50 @@ def predict(text):
     prediction = model.predict(text_features)[0]
     return prediction
 
-# Streamlit app UI
-st.set_page_config(page_title="Spam Detection", layout="wide")
-st.title('📧 Spam Detection')
+# Title and Description
+st.title("Spam Detection App")
+st.write("This app uses a Naive Bayes classifier to detect if a message is Spam or Not Spam.")
 
-# Sidebar for additional controls or information
-st.sidebar.header('About')
-st.sidebar.info(
-    """
-    This app uses a Naive Bayes classifier to detect if a given message is spam or not.
-    - **Model**: Multinomial Naive Bayes
-    - **Data**: SMS Spam Collection Dataset
-    """
-)
+# Sidebar for Input
+st.sidebar.header("Input Message")
+input_mess = st.sidebar.text_area('Enter your message here')
 
-# Input form
-st.subheader('Enter Your Message:')
-input_mess = st.text_area('Message:', placeholder='Type your message here...')
+# Load the image
+image = Image.open('logos.webp')  # Replace with your image path
 
-if st.button('Predict'):
-    if input_mess:
-        result = predict(input_mess)
-        if result == 'Not Spam':
-            st.success('✅ **Not Spam**')
-        else:
-            st.error('🚫 **Spam**')
+# Create a circular mask
+mask = Image.new("L", image.size, 0)
+draw = ImageDraw.Draw(mask)
+draw.ellipse((0, 0) + image.size, fill=255)
+
+# Apply the mask to the image
+rounded_image = ImageOps.fit(image, mask.size, centering=(0.5, 0.5))
+rounded_image.putalpha(mask)
+
+# Display the rounded image
+st.image(rounded_image, width=150)
+
+# Predict Button
+if st.sidebar.button('Predict'):
+    res = predict(input_mess)
+    confidence = model.predict_proba(cv.transform([input_mess]))[0]
+    if res == 'Not Spam':
+        st.sidebar.success(f'Prediction: Not Spam ({confidence[1]:.2f} confidence)')
     else:
-        st.warning('⚠️ Please enter a message to classify.')
+        st.sidebar.error(f'Prediction: Spam ({confidence[0]:.2f} confidence)')
 
-# Add an image for a more engaging experience (optional)
-st.image('https://www.example.com/your_image.png', caption='Spam Detection Model', use_column_width=True)
+# Model Accuracy
+features_test = cv.transform(mess_test)
+accuracy = model.score(features_test, cat_test)
+st.write(f"### Model Accuracy: {accuracy:.2%}")
+
+# Example Prediction
+st.write("### Example Prediction:")
+example_text = st.text_input("Enter an example message:", "Hello, how are you?")
+res = predict(example_text)
+st.write(f"Message: {example_text}")
+st.write(f"Prediction: {res}")
+
+# Footer
+st.markdown("---")
+st.markdown("Created by [Your Name](https://your-link.com)")
