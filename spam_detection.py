@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import streamlit as st
-from PIL import Image, ImageOps, ImageDraw
+from PIL import Image , ImageOps, ImageDraw
 
 # Configure the page
 st.set_page_config(
